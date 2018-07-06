@@ -24,4 +24,7 @@ The approach chosen for connecting to the Ethereum blockchain was to run an Ethe
 GraphDB (free version) was chosen as triplestore and it will contain all the statements of the knowledge graph. Firts, it was part of the Kubernetes deployment, but this worked not well. So, now the Kubernetes configuration expects a running GraphDB instance on a fixed IP address. Like with the Ethereum node, I chose to use an Ubuntu VM instance on the Compute Engine of Google Cloud. The scripts needed for initializing the GraphDb instance can be found in the `graphdb` folder. 
 
 ### Cloud SQL
-The exploiter manager mincroservice keeps track of the current exploiters and their API credits. All this information is stored in a regular relational database. I chose to use Cloud SQL for it. The Kubernetes configuration expects an PostgreSQL instance with a table `exploiterDB`. It will try to access this table with certain credentials (exploiterManager and corresponding password). 
+The exploiter manager mincroservice keeps track of the current exploiters and their API credits. All this information is stored in a regular relational database. I chose to use Cloud SQL for it. The Kubernetes configuration expects an PostgreSQL instance with a table `exploiterDB`. It will try to access this table with certain credentials (exploiterManager and corresponding password).
+
+## State of the System
+Depositing API credits and the call of API methods by the exploiter with elastic pricing works in the current system. What is missing, is the contribution part of the system. The user interface would be ready, but is missing the feedback mechanism for statements.
