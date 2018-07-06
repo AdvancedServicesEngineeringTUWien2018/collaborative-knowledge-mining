@@ -1,0 +1,1 @@
+/opt/graphdb/bin/loadrdf ~/graphdb/movies -c ~/graphdb/movies-repo.ttl -m parallel -v -p

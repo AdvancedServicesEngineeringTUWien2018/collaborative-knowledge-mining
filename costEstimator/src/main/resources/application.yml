@@ -1,0 +1,22 @@
+defaultValue: 10
+steps:
+  esm.source.single: 4
+  esm.source.multiple: 10
+  esm.source.pairing: 80
+  esm.source.fts: 80
+  esm.source.all: 40
+  esm.exploit.describe: 30
+  esm.exploit.sim.resnik: 32
+  esm.exploit.sim.distance: 16
+  esm.exploit.centrality.betweeness: 40
+  esm.exploit.centrality.closeness: 40
+  esm.exploit.centrality.degree: 20
+  esm.exploit.centrality.pagerank: 60
+  esm.aggregate.distinct: 32
+  esm.aggregate.limit: 2
+  esm.aggregate.offset: 2
+  esm.aggregate.orderby: 32
+  esm.aggregate.sample: 8
+  esm.aggregate.weightedsum: 12
+  esm.aggregate.normalisation.minmax: 24
+

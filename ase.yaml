@@ -1,0 +1,308 @@
+# -----------------------------------------------------------
+#                     Exposed Services
+# -----------------------------------------------------------
+
+# ________ API GATEWAY _________
+#kind: Service
+#apiVersion: v1
+#metadata:
+#  name: ldreactor
+#spec:
+#  type: LoadBalancer
+#  loadBalancerIP: 104.155.70.150
+#  selector:
+#    app: storefront
+#  ports:
+#    - name: http
+#      port: 80
+#      targetPort: 80
+#---
+# ______ API Gateway _________
+kind: Service
+apiVersion: v1
+metadata:
+  name: apigateway
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 35.187.83.46
+  selector:
+    app: apigateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+# -----------------------------------------------------------
+#                    Backend Services
+# -----------------------------------------------------------
+
+# ______ Exploiter Management _________
+kind: Service
+apiVersion: v1
+metadata:
+  name: exploiter-management
+spec:
+  selector:
+    app: exploiter-management
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+# _____ Blockchain Bridge _______
+kind: Service
+apiVersion: v1
+metadata:
+  name: blockchain-bridge
+spec:
+  selector:
+    app: blockchain-bridge
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+# ______ Cost Estimator _______
+kind: Service
+apiVersion: v1
+metadata:
+  name: cost-estimator
+spec:
+  selector:
+    app: cost-estimator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+---
+# ______ Exploratory Search _______
+kind: Service
+apiVersion: v1
+metadata:
+  name: exploratory-search
+spec:
+  selector:
+    app: exploratory-search
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+# -----------------------------------------------------------
+#                    Storage Endpoints
+# -----------------------------------------------------------
+---
+# ___ SQL Database ____
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: sql-db
+subsets:
+  - addresses:
+      - ip: 35.195.93.66
+    ports:
+      - port: 5432
+---
+
+# ___ Ethereum Geth Node ____
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: geth-node
+subsets:
+  - addresses:
+      - ip: 10.132.0.2
+    ports:
+      - port: 8545
+
+---
+
+# ______ GraphDB _______
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: graphdb-triplestore
+subsets:
+  - addresses:
+      - ip: 10.132.0.3
+  ports:
+      - port: 7200
+
+---
+
+# ---------------------------------------------------------
+#                  Deployments
+# ---------------------------------------------------------
+
+# _____ API Gateway _____
+kind: Deployment
+apiVersion: apps/v1beta1
+metadata:
+  name: apigateway
+  annotations:
+    tier: frontend
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: apigateway
+  template:
+    metadata:
+      labels:
+        app: apigateway
+    spec:
+      containers:
+        - name: apigateway
+          image: gcr.io/rugged-alloy-205510/apigateway
+          ports:
+            - name: http
+              containerPort: 8080
+          args: ["--server.port=8080",
+                 "--exploiter.manager.api.address=http://exploiter-management.default.svc.cluster.local:8080",
+                 "--cost.estimator.api.address=http://cost-estimator.default.svc.cluster.local:8080",
+                 "--exploratory.search.api.address=http://exploratory-search.default.svc.cluster.local:8080"]
+          imagePullPolicy: Always
+---
+# ____ Exploiter Management _____
+kind: Deployment
+apiVersion: apps/v1beta1
+metadata:
+  name: exploiter-management
+  annotations:
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: exploiter-management
+  template:
+    metadata:
+      labels:
+        app: exploiter-management
+    spec:
+      containers:
+        - name: exploiter-management
+          image: gcr.io/rugged-alloy-205510/exploiter-management
+          ports:
+            - name: http
+              containerPort: 8080
+          args: ["--server.port=8080",
+                 "--spring.datasource.url=jdbc:postgresql://35.195.93.66:5432/exploiterDB",
+                 "--spring.datasource.username=exploiterManager",
+                 "--spring.datasource.password=JMe2kH26kKHKMpLWPw5PdQMcnzD5uXoh",
+                 "--spring.datasource.driverClassName=org.postgresql.Driver",
+                 "--spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect"]
+          livenessProbe:
+            initialDelaySeconds: 120
+            httpGet:
+              path: /health
+              port: http
+          imagePullPolicy: Always
+---
+# ____ Blockchain Bridge _____
+kind: Deployment
+apiVersion: apps/v1beta2
+metadata:
+  name: blackchain-bridge
+  annotations:
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: blackchain-bridge
+  template:
+    metadata:
+      labels:
+        app: blackchain-bridge
+    spec:
+      containers:
+        - name: blackchain-bridge
+          image: gcr.io/rugged-alloy-205510/blockchain-bridge
+          ports:
+            - name: http
+              containerPort: 8080
+          args: ["--server.port=8080",
+                 "--ethereum.geth.account.operator.address=0x0e40ab4c8b83aa8d488f0c164ff96b867c0f00e6",
+                 "--ethereum.geth.rpc.address=http://10.132.0.2:8545",
+                 "--ethereum.kgcoin.address=0x3b2dced58546eb0c32f64b1d074ec5b44fba615f"]
+          livenessProbe:
+            initialDelaySeconds: 120
+            httpGet:
+              path: /health
+              port: http
+          imagePullPolicy: Always
+---
+# _____ Cost Estimator _____
+kind: Deployment
+apiVersion: apps/v1beta2
+metadata:
+  name: cost-estimator
+  annotations:
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cost-estimator
+  template:
+    metadata:
+      labels:
+        app: cost-estimator
+    spec:
+      containers:
+        - name: cost-estimator
+          image: gcr.io/rugged-alloy-205510/cost-estimator
+          ports:
+            - name: http
+              containerPort: 8080
+          args: ["--server.port=8080"]
+          livenessProbe:
+            initialDelaySeconds: 120
+            httpGet:
+              path: /health
+              port: http
+          imagePullPolicy: Always
+---
+# _____ Exploratory Search _____
+kind: Deployment
+apiVersion: apps/v1beta1
+metadata:
+  name: exploratory-search
+  annotations:
+    tier: backend
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exploratory-search
+  template:
+    metadata:
+      labels:
+        app: exploratory-search
+    spec:
+      containers:
+        - name: exploratory-search
+          image: gcr.io/rugged-alloy-205510/exploratory-search
+          ports:
+            - name: http
+              containerPort: 8080
+          args: ["--server.port=8080",
+                 "--esm.db.choice=RemoteGraphDB",
+                 "--graphdb.repository.id=movies",
+                 "--graphdb.address=http://10.132.0.3:7200",
+                 "--graphdb.lucene.initialize=true",
+                 "--graphdb.fts.choice=LocalSyncingJanusGraph",
+                 "--janusgraph.dir=janusgraph/"]
+          livenessProbe:
+            initialDelaySeconds: 120
+            httpGet:
+              path: /status/heartbeat
+              port: http
+          imagePullPolicy: Always
