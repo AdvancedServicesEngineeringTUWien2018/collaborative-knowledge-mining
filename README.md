@@ -2,7 +2,79 @@
 
 The basic idea of the ’collaborative knowledge mining’ scenario is to bring together human agents in the Web that contribute knowledge to the movie domain and exploiters that want to access such a knowledge graph directly through query languages (SPARQL, Gremlin) or to request advanced services (entity recognition, related entities, etc.) in this domain. The contributors should be rewarded for their contributions and exploiters have to pay for the provided services. This is illustrated in the following figure.
 
-![Collaborative Knowledge Mining](/doc/images/high-level-ASE.png)
+![Collaborative Knowledge Mining Concept](/doc/images/high-level-ASE.png)
+
+## Architecture
+
+![Collaborative Knowledge Mining Archietcture](/doc/images/ASE-architecture.png)
+
+The system is accessible to the exploiter over an API gateway with an fixed static IP address. Behind the load balancer at this IP, can be mulitple API gateways working concurrently (kuberntes allows to specify client-aware routing). Those API gateways are the public interface to methods provided by the microservices in the background.
+
+In the center of those microservices, is the exploratory search service, which allows the exploiter to define arbitary search queries based on predefined operators. For example the following JSON defines such an exploration flow, which will apply a FTS  of "The Shining", rank the results using Page rank and then describe the results.
+
+`
+{
+  "steps": [
+    {
+      "name": "esm.source.fts",
+      "param": {
+        "keyword": "The Shining"
+      }
+    },
+    {
+      "name": "esm.exploit.centrality.pagerank"
+    },
+    {
+      "name": "esm.aggregate.orderby",
+      "param": {
+        "path": "/centrality/esm.exploit.centrality.pagerank",
+        "strategy": "DESC"
+      }
+    },
+    {
+      "name": "esm.aggregate.limit",
+      "param": {
+        "number": 10
+      }
+    },
+    {
+      "name": "esm.exploit.describe",
+      "param": {
+        "content": {
+          "label": {
+            "@type": "text",
+            "properties": [
+              "http://www.w3.org/2000/01/rdf-schema#label"
+            ]
+          },
+          "thumb": {
+            "@type": "iri",
+            "properties": [
+              "http://dbpedia.org/ontology/thumbnail"
+            ]
+          },
+          "class": {
+            "@type": "iri",
+            "properties": [
+              "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
+`
+
+Then the correspondign result will be returned. If an exploiter wants to call such a method, he has to pay with API credits. The amount of credits that have to be paid depend on the computational complexity of the exploration flow. It is an elastic pricing model. It urges exploiter also to write efficient flows. The cost estimator microservice can be used to estimate the cost of an exploration flow in beforehand. The current cost estimator implementation uses a simple cost map for the operators, but it could be done more elastic by tracking the computation of exploration flows and analyzing them.
+
+How does an exploiter get API credits. First, the exploiter has to register itself over the corresponding API method. The exploiter will get an unique UID, which (s)he has to remember. The exploiter can then use a Ethereum client/wallet of its choice, and buy API credits over the designed smart contract (exploiter has to know the address of this smart contract) passing its UID. A successfull deposit will trigger an event on the Ethereum blockhain.
+
+The blockchain bridge is decoupled from the other microservices over a Pub/Sub middleware. It is responsible for calling certain methods of the smart contract and listen for events such as mentioned above. If the blockchain bridge detects a deposit event, it will be wrapped into a JSON Dto and published to the `API Credit Deposit` topic.
+
+The exploiter management microservice maintains a record of the exploiters and their API credits using a conventional relational database (Cloud SQL on the Google PLatform). This must be done, because the Ethereum blockchain is too slow, as to use it for fast reads and writes. However, the API credits are reflected as immutable records on the blockchain as well as in the database. The API gateway will call this microservice for each API call to the search API that was successfull (no 5xx code), and this microservice will change the API credits in the database accordingly and publish it further into the `API Calls` topic. There it will be read by a blockchain bridge instance and it will call the corresponding smart contract method for tracking API calls for exploiters.
+
+The integrator and crawler part are unfortunately missing and were not implemented.
 
 ## Deployment
 
